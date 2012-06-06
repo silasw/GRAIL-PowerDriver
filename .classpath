@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/httpcomponents-client-4.2/lib/commons-codec-1.6.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/httpcomponents-client-4.2/lib/commons-logging-1.1.1.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/httpcomponents-client-4.2/lib/fluent-hc-4.2.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/httpcomponents-client-4.2/lib/httpclient-4.2.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/httpcomponents-client-4.2/lib/httpclient-cache-4.2.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/httpcomponents-client-4.2/lib/httpcore-4.2.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/httpcomponents-client-4.2/lib/httpmime-4.2.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/grail-java-3.0.3/lib/libcommon-3.0.3.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/grail-java-3.0.3/lib/libworldmodel-3.0.3.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/apache-mina-2.0.4/dist/mina-core-2.0.4.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Silas/workspace/slf4j-1.6.4/slf4j-api-1.6.4.jar"/>
+	<classpathentry kind="lib" path="lib/slf4j-log4j12-1.6.4.jar"/>
+	<classpathentry kind="lib" path="lib/log4j-1.2.17.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
