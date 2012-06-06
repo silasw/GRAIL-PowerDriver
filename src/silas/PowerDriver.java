@@ -90,11 +90,16 @@ public class PowerDriver {
 	      for(String uri : uris) {
 	          log.debug("URI: {}", uri);
 	          Collection<Attribute> attribs = state.getState(uri);
+	          long timestamp = 0;
+	          boolean onoff = true;
 	          for (Attribute att : attribs) {
-	        	  boolean onoff=BooleanConverter.CONVERTER.decode(att.getData());
-	        	  log.info("{} is {}", uri, onoff ? "on" : "off");
-	        	  WebPowerSwitchIII(getStringAttribute(uri, wmc, "target"), getIntAttribute(uri, wmc, "outlet"), onoff, getStringAttribute(uri, wmc, "username"), getStringAttribute(uri, wmc, "password"));
+	        	  if(att.getCreationDate()>timestamp){
+	        		  timestamp=att.getCreationDate();
+	        		  onoff=BooleanConverter.CONVERTER.decode(att.getData());
+	        	  }
 	          }
+        	  log.info("{} is {}", uri, onoff ? "on" : "off");
+        	  WebPowerSwitchIII(getStringAttribute(uri, wmc, "target"), getIntAttribute(uri, wmc, "outlet"), onoff, getStringAttribute(uri, wmc, "username"), getStringAttribute(uri, wmc, "password"));
 	      }
 	    }
 	}
@@ -137,7 +142,7 @@ public class PowerDriver {
 		      // Gets the first matching attribute
 		      Iterator<Attribute> attribs = state1.getState(uri).iterator();
 		      int answer =  IntegerConverter.CONVERTER.decode(attribs.next().getData());
-		      log.info("Decoded answer: {}", answer);
+		      log.info("Decoded {}: {}", attribute, answer);
 		      return answer;
 			} catch (Exception e) {
 		      log.error("Exception thrown while retrieving "+attribute+" from world model: ", e);
@@ -147,6 +152,7 @@ public class PowerDriver {
 	// Method that makes an HTTP request to the power switch, logging the response.
 	private static void WebPowerSwitchIII(String target, int outletnum, boolean on, String username, String password){
 		{
+			System.out.println("Calling method with args: "+target+" "+outletnum+" "+on);
 			int numOutlets = 8;
 			log.debug("Outlet number {}/{}", outletnum,numOutlets-1);
 			if(outletnum>numOutlets||outletnum<0){
@@ -182,20 +188,15 @@ public class PowerDriver {
 			try {
 				// Send the request to the WebPowerSwitch, store the response
 				HttpResponse response = httpclient.execute(httpget);
-				
 				// Examine the response status
 				log.info("Status line: {}", response.getStatusLine());
-			    
-			    
 			    // Print out all the headers in the response
-			   
 			    HeaderIterator it = response.headerIterator();
 			    while (it.hasNext()) {
 			        log.debug("Response header: " + it.next());
 			    }
 			    // Get hold of the response entity
 			    HttpEntity entity = response.getEntity();
-			 
 				// If the response does not enclose an entity, there is no need
 				// to worry about connection release
 				if (entity != null) 
@@ -204,9 +205,7 @@ public class PowerDriver {
 				    try {
 				        BufferedReader reader = new BufferedReader(
 				        		new InputStreamReader(instream));
-				        
 				        // do something useful with the response content
-				        
 					    String str = null;
 				        while ((str = reader.readLine()) != null) {
 				        	log.info("Response line: " + str);
@@ -225,7 +224,6 @@ public class PowerDriver {
 				        // Closing the input stream will trigger connection release
 				    	instream.close();
 				    }
-			 
 				    // When HttpClient instance is no longer needed, 
 				    // shut down the connection manager to ensure
 				    // immediate deallocation of all system resources
