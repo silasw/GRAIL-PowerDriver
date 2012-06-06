@@ -33,22 +33,27 @@ import org.apache.http.impl.client.DefaultHttpClient;
 public class PowerDriver {
 	private static final Logger log = LoggerFactory
 	.getLogger(PowerDriver.class);
+	/*
+	* Controls any number of Digital Loggers Web Power Switch III outlets.
+	* Takes two arguments: World Model Host and World Model Client Port
+	* Watches the world model for changes in objects with URIs matching ".*powerswitch.*". Each object should have:
+	* - username (string) for the network power switch
+	* - password (string) for the network power switch
+	* - target (string) for the HTTP request to access the power switch, in this format: http://192.168.200.34:7005/
+	* - on (boolean)
+	* - outlet (integer) from 1 to 8
+	*/
 	public static void main(String[] args) {
-		
-		
 	    if (args.length < 2) {
 	      printUsageInfo();
 	      return;
 	    }
-
-	    
 	    // Create a connection to the World Model as a client
 	    final ClientWorldConnection wmc = new ClientWorldConnection();
 	    log.info("Connecting to {}", wmc);
 	    wmc.setHost(args[0]);
 	    wmc.setPort(Integer.parseInt(args[1]));
 	    log.debug("Connected.");
-
 	    // Attempt to connect and exit if it fails
 	    if (!wmc.connect()) {
 	      log.error("Couldn't connect to the world model!  Check your connection parameters.");
@@ -93,12 +98,15 @@ public class PowerDriver {
 	      }
 	    }
 	}
+	/* Prints usage info to the console.
+	 */
 	public static void printUsageInfo() {
 		StringBuffer sb = new StringBuffer(
 				"Usage: <World Model Host> <World Model Port>" +
 				"\n");
 		System.err.println(sb.toString());
 	}
+	// Method that makes a snapshot request to get a particular string attribute.
 	private static String getStringAttribute(String queryuri, ClientWorldConnection wmc, String attribute){
 		// Query should be specific; this method only returns the first string found.
 		try {
@@ -110,8 +118,6 @@ public class PowerDriver {
 		      // Gets the first matching attribute
 		      Iterator<Attribute> attribs = state1.getState(uri).iterator();
 		      String answer = StringConverter.CONVERTER.decode(attribs.next().getData());
-		      //String answer =  (String)DataConverter.decodeUri("room", attribs.next().getData());
-//		      String answer = new String()
 		      log.info("Decoded {}: {}", attribute, answer);
 		      return answer;
 		    } catch (Exception e) {
@@ -119,6 +125,7 @@ public class PowerDriver {
 		    }
 		return null;
 	}
+	// Method that makes a snapshot request to get a particular integer attribute.
 	private static int getIntAttribute(String queryuri, ClientWorldConnection wmc, String attribute){
 		// Query should be specific; this method only returns the first string found.
 		try {
@@ -137,13 +144,10 @@ public class PowerDriver {
 		    }
 		return -1;
 	}
+	// Method that makes an HTTP request to the power switch, logging the response.
 	private static void WebPowerSwitchIII(String target, int outletnum, boolean on, String username, String password){
 		{
 			int numOutlets = 8;
-/*			if(dargs.length<3){
-				System.err.println("Needs 5 arguments: deviceIP:port, outlet number, boolean for on/off, username, and password");
-				return;
-			}*/
 			log.debug("Outlet number {}/{}", outletnum,numOutlets-1);
 			if(outletnum>numOutlets||outletnum<0){
 				log.warn("Invalid outlet: {}", outletnum);
