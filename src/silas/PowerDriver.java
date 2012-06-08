@@ -1,8 +1,6 @@
 package silas;
 import java.util.Collection;
 import java.util.Date;
-import java.util.Iterator;
-
 import org.grailrtls.libworldmodel.client.ClientWorldConnection;
 import org.grailrtls.libworldmodel.client.StepResponse;
 import org.grailrtls.libworldmodel.client.Response;
@@ -32,202 +30,220 @@ import org.apache.http.impl.client.DefaultHttpClient;
 
 public class PowerDriver {
 	private static final Logger log = LoggerFactory
-	.getLogger(PowerDriver.class);
+			.getLogger(PowerDriver.class);
+
 	/*
-	* Controls any number of Digital Loggers Web Power Switch III outlets.
-	* Takes two arguments: World Model Host and World Model Client Port
-	* Watches the world model for changes in objects with URIs matching ".*powerswitch.*". Each object should have:
-	* - username (string) for the network power switch
-	* - password (string) for the network power switch
-	* - target (string) for the HTTP request to access the power switch, in this format: http://192.168.200.34:7005/
-	* - on (boolean)
-	* - outlet (integer) from 1 to 8
-	*/
+	 * Controls any number of Digital Loggers Web Power Switch III outlets.
+	 * Takes two arguments: World Model Host and World Model Client Port Watches
+	 * the world model for changes in objects with URIs matching
+	 * ".*powerswitch.*". Each object should have: - username (string) for the
+	 * network power switch - password (string) for the network power switch -
+	 * target (string) for the HTTP request to access the power switch, in this
+	 * format: http://192.168.200.34:7005/ - on (boolean) - outlet (integer)
+	 * from 1 to 8
+	 */
 	public static void main(String[] args) {
-	    if (args.length < 2) {
-	      printUsageInfo();
-	      return;
-	    }
-	    // Create a connection to the World Model as a client
-	    final ClientWorldConnection wmc = new ClientWorldConnection();
-	    log.info("Connecting to {}", wmc);
-	    wmc.setHost(args[0]);
-	    wmc.setPort(Integer.parseInt(args[1]));
-	    log.debug("Connected.");
-	    // Attempt to connect and exit if it fails
-	    if (!wmc.connect()) {
-	      log.error("Couldn't connect to the world model!  Check your connection parameters.");
-	      return;
-	    }
-	    Runtime.getRuntime().addShutdownHook(new Thread() {
+		if (args.length < 2) {
+			printUsageInfo();
+			return;
+		}
+		// Create a connection to the World Model as a client
+		final ClientWorldConnection wmc = new ClientWorldConnection();
+		log.info("Connecting to {}", wmc);
+		wmc.setHost(args[0]);
+		wmc.setPort(Integer.parseInt(args[1]));
+		log.debug("Connected.");
+		// Attempt to connect and exit if it fails
+		if (!wmc.connect()) {
+			log.error("Couldn't connect to the world model!  Check your connection parameters.");
+			return;
+		}
+		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run() {
 				log.info("Disconnecting from {}", wmc);
 				wmc.disconnect();
 			}
 		});
 		// Set up streaming request
-	    long now = System.currentTimeMillis();
-	    long oneSecond = 1000;
-	    log.info("Requesting from {} every {} ms." , new Date(now), oneSecond);
-	    StepResponse response = wmc.getStreamRequest(".*powerswitch.*", now, oneSecond,"on");		
-	    WorldState state = null;
-	    // Streaming request loop
-	    while (!response.isComplete()) {
-	      try {
-	        state = response.next();
-	        log.debug("Recieved response");
-	      } catch(Exception e){
-	        log.error("Error occured during request.", e);
-	        
-	        // Restart request if there is an error
-	        now = System.currentTimeMillis();
-	        response = wmc.getStreamRequest(".*powerswitch.*", now, oneSecond,"on");
-	        log.info("Restarting request. Requesting from " + new Date(now) + " every " + oneSecond + " ms.");
-	        state = null;
-	        continue;
-	      }
-	      Collection<String> uris = state.getURIs();
-	      for(String uri : uris) {
-	          log.debug("URI: {}", uri);
-	          Collection<Attribute> attribs = state.getState(uri);
-	          long timestamp = 0;
-	          boolean onoff = true;
-	          for (Attribute att : attribs) {
-	        	  if(att.getCreationDate()>timestamp){
-	        		  timestamp=att.getCreationDate();
-	        		  onoff=BooleanConverter.CONVERTER.decode(att.getData());
-	        	  }
-	          }
-        	  log.info("{} is {}", uri, onoff ? "on" : "off");
-        	  WebPowerSwitchIII(getStringAttribute(uri, wmc, "target"), getIntAttribute(uri, wmc, "outlet"), onoff, getStringAttribute(uri, wmc, "username"), getStringAttribute(uri, wmc, "password"));
-	      }
-	    }
+		long now = System.currentTimeMillis();
+		long oneSecond = 1000;
+		log.info("Requesting from {} every {} ms.", new Date(now), oneSecond);
+		StepResponse response = wmc.getStreamRequest(".*powerswitch.*", now,
+				oneSecond, ".*");
+		WorldState state = null;
+		// Streaming request loop
+		while (!response.isComplete()) {
+			try {
+				state = response.next();
+				log.debug("Recieved response");
+			} catch (Exception e) {
+				log.error("Error occured during request.", e);
+
+				// Restart request if there is an error
+				now = System.currentTimeMillis();
+				response = wmc.getStreamRequest(".*powerswitch.*", now,
+						oneSecond, ".*");
+				log.info("Restarting request. Requesting from " + new Date(now)
+						+ " every " + oneSecond + " ms.");
+				state = null;
+				continue;
+			}
+			Collection<String> uris = state.getURIs();
+			for (String uri : uris) {
+				log.info("URI: {}", uri);
+				Collection<Attribute> attribs = state.getState(uri);
+				// TS represents time stamp
+				long onTS = 0, outletTS = 0, targetTS = 0, usernameTS = 0, passwordTS = 0;
+				boolean onoff = true;
+				int outlet = -1;
+				String target = null, username = null, password = null;
+				for (Attribute att : attribs) {
+					System.out.println("att name: " + att.toString());
+					try {
+						if ("on".equals(att.getAttributeName())) {
+							if (att.getCreationDate() > onTS) {
+								onTS = att.getCreationDate();
+								onoff = BooleanConverter.CONVERTER.decode(att
+										.getData());
+							}
+						} else if ("outlet".equals(att.getAttributeName())) {
+							if (att.getCreationDate() > outletTS) {
+								outletTS = att.getCreationDate();
+								outlet = IntegerConverter.CONVERTER.decode(att
+										.getData());
+							}
+						} else if ("target".equals(att.getAttributeName())) {
+							if (att.getCreationDate() > targetTS) {
+								targetTS = att.getCreationDate();
+								target = StringConverter.CONVERTER.decode(att
+										.getData());
+							}
+						} else if ("username".equals(att.getAttributeName())) {
+							if (att.getCreationDate() > usernameTS) {
+								usernameTS = att.getCreationDate();
+								username = StringConverter.CONVERTER.decode(att
+										.getData());
+							}
+						} else if ("password".equals(att.getAttributeName())) {
+							if (att.getCreationDate() > passwordTS) {
+								passwordTS = att.getCreationDate();
+								password = StringConverter.CONVERTER.decode(att
+										.getData());
+							}
+						}
+					} catch (Exception e) {
+						log.error("Exception thrown while retrieving {}",
+								att.getAttributeName());
+					}
+
+				}
+				log.info("{} is {}", uri, onoff ? "on" : "off");
+				WebPowerSwitchIII(target, outlet, onoff, username, password);
+			}
+		}
+
 	}
-	/* Prints usage info to the console.
+
+	/*
+	 * Prints usage info to the console.
 	 */
 	public static void printUsageInfo() {
 		StringBuffer sb = new StringBuffer(
-				"Usage: <World Model Host> <World Model Port>" +
-				"\n");
+				"Usage: <World Model Host> <World Model Port>" + "\n");
 		System.err.println(sb.toString());
 	}
-	// Method that makes a snapshot request to get a particular string attribute.
-	private static String getStringAttribute(String queryuri, ClientWorldConnection wmc, String attribute){
-		// Query should be specific; this method only returns the first string found.
-		try {
-		      WorldState state1 = wmc.getSnapshot(queryuri, 0l, 0l, attribute).get();
-		      Collection<String> uris1 = state1.getURIs();
-		      // Gets the first URI
-		      Iterator<String> iter = uris1.iterator();
-		      String uri = iter.next();
-		      // Gets the first matching attribute
-		      Iterator<Attribute> attribs = state1.getState(uri).iterator();
-		      String answer = StringConverter.CONVERTER.decode(attribs.next().getData());
-		      log.info("Decoded {}: {}", attribute, answer);
-		      return answer;
-		    } catch (Exception e) {
-		      log.error("Exception thrown while retrieving "+attribute+" from world model " ,e);
-		    }
-		return null;
-	}
-	// Method that makes a snapshot request to get a particular integer attribute.
-	private static int getIntAttribute(String queryuri, ClientWorldConnection wmc, String attribute){
-		// Query should be specific; this method only returns the first string found.
-		try {
-		      WorldState state1 = wmc.getSnapshot(queryuri, 0l, 0l, attribute).get();
-		      Collection<String> uris1 = state1.getURIs();
-		      // Gets the first URI
-		      Iterator<String> iter = uris1.iterator();
-		      String uri = iter.next();
-		      // Gets the first matching attribute
-		      Iterator<Attribute> attribs = state1.getState(uri).iterator();
-		      int answer =  IntegerConverter.CONVERTER.decode(attribs.next().getData());
-		      log.info("Decoded {}: {}", attribute, answer);
-		      return answer;
-			} catch (Exception e) {
-		      log.error("Exception thrown while retrieving "+attribute+" from world model: ", e);
-		    }
-		return -1;
-	}
-	// Method that makes an HTTP request to the power switch, logging the response.
-	private static void WebPowerSwitchIII(String target, int outletnum, boolean on, String username, String password){
+
+	// Method that makes an HTTP request to the power switch, logging the
+	// response.
+	private static void WebPowerSwitchIII(String target, int outletnum,
+			boolean on, String username, String password) {
 		{
-			System.out.println("Calling method with args: "+target+" "+outletnum+" "+on);
 			int numOutlets = 8;
-			log.debug("Outlet number {}/{}", outletnum,numOutlets-1);
-			if(outletnum>numOutlets||outletnum<0){
-				log.warn("Invalid outlet: {}", outletnum);
+			if (target == null || username == null || password == null
+					|| outletnum <= 0 || outletnum > numOutlets) {
+				log.error("Attribute missing required information.");
 				return;
 			}
+
+			System.out.println("Calling method with args: " + target + " "
+					+ outletnum + " " + on);
+
+			log.debug("Outlet number {}/{}", outletnum, numOutlets - 1);
+
 			// Establish an HTTP client for connections
 			HttpClient httpclient = new DefaultHttpClient();
 			// Define the GET request
 			// Format: "http://192.168.200.34:7005/outlet?8=ON"
 			if (!target.startsWith("http://"))
-				target="http://"+target;
+				target = "http://" + target;
 			if (!target.endsWith("/"))
-				target = target+"/";
-			target = target+"outlet?"+outletnum;
+				target = target + "/";
+			target = target + "outlet?" + outletnum;
 			if (on)
-				target = target+"=ON";
+				target = target + "=ON";
 			else
-				target = target+"=OFF";
-			log.info("Target URL: {}",target);
+				target = target + "=OFF";
+			log.info("Target URL: {}", target);
 			HttpGet httpget = new HttpGet(target);
 			// Add authentication to the GET request
 			try {
-				UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(username, password);
+				UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
+						username, password);
 				BasicScheme scheme = new BasicScheme();
-				Header authorizationHeader = scheme.authenticate(credentials, httpget);
-				httpget.addHeader(authorizationHeader); 
+				Header authorizationHeader = scheme.authenticate(credentials,
+						httpget);
+				httpget.addHeader(authorizationHeader);
 			} catch (AuthenticationException e) {
 				e.printStackTrace();
 				return;
 			}
-			
+
 			try {
 				// Send the request to the WebPowerSwitch, store the response
 				HttpResponse response = httpclient.execute(httpget);
 				// Examine the response status
 				log.info("Status line: {}", response.getStatusLine());
-			    // Print out all the headers in the response
-			    HeaderIterator it = response.headerIterator();
-			    while (it.hasNext()) {
-			        log.debug("Response header: " + it.next());
-			    }
-			    // Get hold of the response entity
-			    HttpEntity entity = response.getEntity();
+				// Print out all the headers in the response
+				HeaderIterator it = response.headerIterator();
+				while (it.hasNext()) {
+					log.debug("Response header: " + it.next());
+				}
+				// Get hold of the response entity
+				HttpEntity entity = response.getEntity();
 				// If the response does not enclose an entity, there is no need
 				// to worry about connection release
-				if (entity != null) 
-				{
+				if (entity != null) {
 					InputStream instream = entity.getContent();
-				    try {
-				        BufferedReader reader = new BufferedReader(
-				        		new InputStreamReader(instream));
-				        // do something useful with the response content
-					    String str = null;
-				        while ((str = reader.readLine()) != null) {
-				        	log.info("Response line: " + str);
-				        }
-				    } catch (IOException ex) {
-				        // In case of an IOException the connection will be released
-				    	// back to the connection manager automatically
-				        throw ex;
-				    } catch (RuntimeException ex) {
-				    	// In case of an unexpected exception you may want to abort
-				    	// the HTTP request in order to shut down the underlying 
-				    	// connection and release it back to the connection manager.
-				        httpget.abort();
-				        throw ex;
-				    } finally {
-				        // Closing the input stream will trigger connection release
-				    	instream.close();
-				    }
-				    // When HttpClient instance is no longer needed, 
-				    // shut down the connection manager to ensure
-				    // immediate deallocation of all system resources
-				    httpclient.getConnectionManager().shutdown();        
+					try {
+						BufferedReader reader = new BufferedReader(
+								new InputStreamReader(instream));
+						// do something useful with the response content
+						String str = null;
+						while ((str = reader.readLine()) != null) {
+							log.info("Response line: " + str);
+						}
+					} catch (IOException ex) {
+						// In case of an IOException the connection will be
+						// released
+						// back to the connection manager automatically
+						throw ex;
+					} catch (RuntimeException ex) {
+						// In case of an unexpected exception you may want to
+						// abort
+						// the HTTP request in order to shut down the underlying
+						// connection and release it back to the connection
+						// manager.
+						httpget.abort();
+						throw ex;
+					} finally {
+						// Closing the input stream will trigger connection
+						// release
+						instream.close();
+					}
+					// When HttpClient instance is no longer needed,
+					// shut down the connection manager to ensure
+					// immediate deallocation of all system resources
+					httpclient.getConnectionManager().shutdown();
 				}
 			} catch (ClientProtocolException e) {
 				e.printStackTrace();
