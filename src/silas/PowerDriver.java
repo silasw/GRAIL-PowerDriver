@@ -32,7 +32,7 @@ public class PowerDriver {
 	private static final Logger log = LoggerFactory
 			.getLogger(PowerDriver.class);
 
-	/*
+	/**
 	 * Controls any number of Digital Loggers Web Power Switch III outlets.
 	 * Takes two arguments: World Model Host and World Model Client Port Watches
 	 * the world model for changes in objects with URIs matching
@@ -43,6 +43,17 @@ public class PowerDriver {
 	 * from 1 to 8
 	 */
 	public static void main(String[] args) {
+		if (args.length==1 && "-?".equals(args[0])){
+			System.out.println("name: Power Driver");
+			System.out.println("arguments: worldmodel wm_client");
+			System.out.println("description: Controls any number of Digital Loggers");
+			System.out.println("description: Web Power Switch outlets. World model URIs");
+			System.out.println("description: must match \".*powerswitch.*\".");
+			System.out.println("requires: username");
+			System.out.println("requires: password");
+			System.out.println("requires: target");
+			System.out.println("requires: outlet");
+		}
 		if (args.length < 2) {
 			printUsageInfo();
 			return;
@@ -98,52 +109,43 @@ public class PowerDriver {
 				int outlet = -1;
 				String target = null, username = null, password = null;
 				for (Attribute att : attribs) {
-					System.out.println("att name: " + att.toString());
 					try {
 						if ("on".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > onTS) {
 								onTS = att.getCreationDate();
-								onoff = BooleanConverter.CONVERTER.decode(att
-										.getData());
+								onoff = BooleanConverter.CONVERTER.decode(att.getData());
 							}
 						} else if ("outlet".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > outletTS) {
 								outletTS = att.getCreationDate();
-								outlet = IntegerConverter.CONVERTER.decode(att
-										.getData());
+								outlet = IntegerConverter.CONVERTER.decode(att.getData());
 							}
 						} else if ("target".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > targetTS) {
 								targetTS = att.getCreationDate();
-								target = StringConverter.CONVERTER.decode(att
-										.getData());
+								target = StringConverter.CONVERTER.decode(att.getData());
 							}
 						} else if ("username".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > usernameTS) {
 								usernameTS = att.getCreationDate();
-								username = StringConverter.CONVERTER.decode(att
-										.getData());
+								username = StringConverter.CONVERTER.decode(att.getData());
 							}
 						} else if ("password".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > passwordTS) {
 								passwordTS = att.getCreationDate();
-								password = StringConverter.CONVERTER.decode(att
-										.getData());
+								password = StringConverter.CONVERTER.decode(att.getData());
 							}
 						}
 					} catch (Exception e) {
 						log.error("Exception thrown while retrieving {}",
 								att.getAttributeName());
 					}
-
 				}
 				log.info("{} is {}", uri, onoff ? "on" : "off");
 				WebPowerSwitchIII(target, outlet, onoff, username, password);
 			}
 		}
-
 	}
-
 	/*
 	 * Prints usage info to the console.
 	 */
@@ -164,12 +166,9 @@ public class PowerDriver {
 				log.error("Attribute missing required information.");
 				return;
 			}
-
-			System.out.println("Calling method with args: " + target + " "
+			log.debug("Calling method with args: " + target + " "
 					+ outletnum + " " + on);
-
 			log.debug("Outlet number {}/{}", outletnum, numOutlets - 1);
-
 			// Establish an HTTP client for connections
 			HttpClient httpclient = new DefaultHttpClient();
 			// Define the GET request
@@ -190,8 +189,7 @@ public class PowerDriver {
 				UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
 						username, password);
 				BasicScheme scheme = new BasicScheme();
-				Header authorizationHeader = scheme.authenticate(credentials,
-						httpget);
+				Header authorizationHeader = scheme.authenticate(credentials,httpget);
 				httpget.addHeader(authorizationHeader);
 			} catch (AuthenticationException e) {
 				e.printStackTrace();
