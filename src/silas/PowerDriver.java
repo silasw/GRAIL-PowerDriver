@@ -29,18 +29,24 @@ import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 public class PowerDriver {
-	private static final Logger log = LoggerFactory
-			.getLogger(PowerDriver.class);
+	/**
+	 * Logger for this class.
+	 */
+	private static final Logger log = LoggerFactory.getLogger(PowerDriver.class);
 
 	/**
 	 * Controls any number of Digital Loggers Web Power Switch III outlets.
-	 * Takes two arguments: World Model Host and World Model Client Port Watches
-	 * the world model for changes in objects with URIs matching
-	 * ".*powerswitch.*". Each object should have: - username (string) for the
-	 * network power switch - password (string) for the network power switch -
-	 * target (string) for the HTTP request to access the power switch, in this
-	 * format: http://192.168.200.34:7005/ - on (boolean) - outlet (integer)
-	 * from 1 to 8
+	 * Watches the world model for changes in objects with URIs matching
+	 * ".*powerswitch.*". Each object should have:
+	 * <ul><li>username (string) for the
+	 * network power switch</li>
+	 * <li>password (string) for the network power switch</li>
+	 * <li>target (string) for the HTTP request to access the power switch, in this
+	 * format: http://192.168.200.34:7005/</li>
+	 * <li>on (boolean)</li>
+	 * <li>outlet (integer) from 1 to 8</li>
+	 * </ul>
+	 * @param args World Model Host, World Model Client Port 
 	 */
 	public static void main(String[] args) {
 		if (args.length==1 && "-?".equals(args[0])){
@@ -77,10 +83,10 @@ public class PowerDriver {
 		});
 		// Set up streaming request
 		long now = System.currentTimeMillis();
-		long oneSecond = 1000;
-		log.info("Requesting from {} every {} ms.", new Date(now), oneSecond);
+		long streamInterval = 1000;
+		log.info("Requesting from {} every {} ms.", new Date(now), streamInterval);
 		StepResponse response = wmc.getStreamRequest(".*powerswitch.*", now,
-				oneSecond, ".*");
+				streamInterval, ".*");
 		WorldState state = null;
 		// Streaming request loop
 		while (!response.isComplete()) {
@@ -93,19 +99,19 @@ public class PowerDriver {
 				// Restart request if there is an error
 				now = System.currentTimeMillis();
 				response = wmc.getStreamRequest(".*powerswitch.*", now,
-						oneSecond, ".*");
+						streamInterval, ".*");
 				log.info("Restarting request. Requesting from " + new Date(now)
-						+ " every " + oneSecond + " ms.");
+						+ " every " + streamInterval + " ms.");
 				state = null;
 				continue;
 			}
 			Collection<String> uris = state.getURIs();
 			for (String uri : uris) {
-				log.info("URI: {}", uri);
+				log.debug("URI: {}", uri);
 				Collection<Attribute> attribs = state.getState(uri);
 				// TS represents time stamp
 				long onTS = 0, outletTS = 0, targetTS = 0, usernameTS = 0, passwordTS = 0;
-				boolean onoff = true;
+				boolean newOnStatus = true;
 				int outlet = -1;
 				String target = null, username = null, password = null;
 				for (Attribute att : attribs) {
@@ -113,27 +119,32 @@ public class PowerDriver {
 						if ("on".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > onTS) {
 								onTS = att.getCreationDate();
-								onoff = BooleanConverter.CONVERTER.decode(att.getData());
+								newOnStatus = BooleanConverter.CONVERTER.decode(att.getData());
+								log.debug("Decoded on: {}",newOnStatus);
 							}
 						} else if ("outlet".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > outletTS) {
 								outletTS = att.getCreationDate();
 								outlet = IntegerConverter.CONVERTER.decode(att.getData());
+								log.debug("Decoded outlet: {}",outlet);
 							}
 						} else if ("target".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > targetTS) {
 								targetTS = att.getCreationDate();
 								target = StringConverter.CONVERTER.decode(att.getData());
+								log.debug("Decoded target: {}",target);
 							}
 						} else if ("username".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > usernameTS) {
 								usernameTS = att.getCreationDate();
 								username = StringConverter.CONVERTER.decode(att.getData());
+								log.debug("Decoded username: {}",username);
 							}
 						} else if ("password".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > passwordTS) {
 								passwordTS = att.getCreationDate();
 								password = StringConverter.CONVERTER.decode(att.getData());
+								log.debug("Decoded password: {}",password);
 							}
 						}
 					} catch (Exception e) {
@@ -141,22 +152,24 @@ public class PowerDriver {
 								att.getAttributeName());
 					}
 				}
-				log.info("{} is {}", uri, onoff ? "on" : "off");
-				WebPowerSwitchIII(target, outlet, onoff, username, password);
+				log.info("{} is {}", uri, newOnStatus ? "on" : "off");
+				WebPowerSwitchIII(target, outlet, newOnStatus, username, password);
 			}
 		}
 	}
-	/*
+	/**
 	 * Prints usage info to the console.
 	 */
 	public static void printUsageInfo() {
-		StringBuffer sb = new StringBuffer(
-				"Usage: <World Model Host> <World Model Port>" + "\n");
+		StringBuffer sb = new StringBuffer("Usage: <World Model Host> <World Model Port>" + "\n");
 		System.err.println(sb.toString());
 	}
 
-	// Method that makes an HTTP request to the power switch, logging the
-	// response.
+	/** Method that makes an HTTP request to the power switch, logging the
+	 * response.
+	 * 
+	 * 
+	*/ 
 	private static void WebPowerSwitchIII(String target, int outletnum,
 			boolean on, String username, String password) {
 		{
