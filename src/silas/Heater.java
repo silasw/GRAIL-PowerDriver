@@ -71,6 +71,7 @@ public class Heater extends TimerTask {
 
 		if (args.length < 5) {
 			System.err.println(USAGE_STRING);
+			return;
 		}
 
 		String hostname = args[0];
