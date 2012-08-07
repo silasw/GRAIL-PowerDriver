@@ -32,6 +32,10 @@
           <level value="debug" />
          
         </logger>
+	<logger name="apps.SwitchController">
+          <level value="debug" />
+         
+        </logger>
   
 
   <root> 

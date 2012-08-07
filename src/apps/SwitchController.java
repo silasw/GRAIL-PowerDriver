@@ -51,13 +51,14 @@ public class SwitchController {
 	 * @param attribute
 	 * @param data
 	 */
-	public void update(final String URI, final String attribute,
+	public boolean update(final String URI, final String attribute,
 			boolean data) {
 		if (URI != null && attribute != null) {
-			this.updateAttribute(URI, attribute, data);
+			return this.updateAttribute(URI, attribute, data);
 		} else{
 			log.error("Invalid arguments to update attribute: null arguments");
 		}
+		return false;
 	}
 /** Updates an attribute with a boolean.
  * 

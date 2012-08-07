@@ -3,6 +3,7 @@ import java.util.Collection;
 import java.util.Timer;
 import java.util.TimerTask;
 import org.grailrtls.libworldmodel.client.ClientWorldConnection;
+import org.grailrtls.libworldmodel.client.Response;
 import org.grailrtls.libworldmodel.client.WorldState;
 import org.grailrtls.libworldmodel.client.protocol.messages.Attribute;
 import org.grailrtls.libworldmodel.solver.SolverWorldConnection;
@@ -98,17 +99,39 @@ public class Heater extends TimerTask {
 			log.error("Unable to connect to world model as a solver!");
 			return;
 		}
+		//Check current heater status
+		try {
+			WorldState heaterstate = wmc.getSnapshot("winlab.powerswitch.heater", 0, 0, "on").get();
+			Collection<String> heateruris = heaterstate.getURIs();
+			long timestamp = 0;
+			for(String uri : heateruris){
+				Collection<Attribute> attribs = heaterstate.getState(uri);
+				for(Attribute att : attribs){
+					if(att.getCreationDate()>timestamp){
+						heaterIsOn = BooleanConverter.CONVERTER.decode(att.getData());
+						timestamp = att.getCreationDate();
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error("Exception thrown while getting initial heater response: " + e);
+		}
+		log.info("Detected that the heater object's On status was set to "+heaterIsOn);
+		//Initialize switch controller class
 		SwitchController switchcontrol = new SwitchController(wms);
+		//Set up timer task
 		Timer mintimer = new Timer();
 		TimerTask checker = new Heater(wmc, switchcontrol);
+		//Chair and door are initialized active
 		doorIsActive = true;
 		chairIsActive = true;
+		//Schedule task
 		mintimer.scheduleAtFixedRate(checker, initialTaskDelay, checkInterval);
 	}
 
 	private final ClientWorldConnection wmc;
 	private final SwitchController controller;
-
+	
 	public Heater(ClientWorldConnection wmc, final SwitchController controller) {
 		this.wmc = wmc;
 		this.controller = controller;
@@ -119,44 +142,47 @@ public class Heater extends TimerTask {
 		try {
 			// The next line will block until the response completes or an
 			// exception occurs
-			WorldState chairstate = wmc
-					.getSnapshot(chairQuery, 0l, 0l, "empty").get();
-			WorldState doorstate = wmc.getSnapshot(doorQuery, 0l, 0l, "closed")
-					.get();
+			WorldState chairstate = wmc.getSnapshot(chairQuery, 0l, 0l, "empty").get();
+			WorldState doorstate = wmc.getSnapshot(doorQuery, 0l, 0l, "closed").get();
 			Collection<String> chairuris = chairstate.getURIs();
 			Collection<String> dooruris = doorstate.getURIs();
-			System.out.println("Door uris: " + dooruris);
+			long timestamp = 0;
+			boolean empty = false;
 			for (String uri : chairuris) {
-				System.out.println("URI: " + uri);
+				log.info("Chair URI: " + uri);
 				Collection<Attribute> attribs = chairstate.getState(uri);
 				for (Attribute att : attribs) {
-					boolean empty = BooleanConverter.CONVERTER.decode(att
-							.getData());
-					System.out.println("\tEmpty: " + empty);
-					System.out.println("Time since last change:"
-							+ (System.currentTimeMillis() - att
-									.getCreationDate()) + " ms");
-					if (System.currentTimeMillis() - att.getCreationDate() > shutoffDelay
-							&& empty) {
-						chairIsActive = false;
-					} else {
-						chairIsActive = true;
+					if(att.getCreationDate()>timestamp){
+						timestamp = att.getCreationDate();
+						empty = BooleanConverter.CONVERTER.decode(att.getData());
+						if (System.currentTimeMillis() - att.getCreationDate() > shutoffDelay
+								&& empty) {
+							chairIsActive = false;
+						} else {
+							chairIsActive = true;
+						}
 					}
 				}
 			}
+			log.debug("\tEmpty: " + empty);
+			log.debug("Time since last chair change:"+ (System.currentTimeMillis() - timestamp) + " ms");
+			timestamp = 0;
 			for (String uri : dooruris) {
-				System.out.println("URI: " + uri);
-				Collection<Attribute> attribs = doorstate.getState(uri);
+				log.info("Door URI: " + uri);
+				Collection<Attribute> attribs = doorstate.getState(uri);	
 				for (Attribute att : attribs) {
-					log.debug("\tClosed: "+ BooleanConverter.CONVERTER.decode(att.getData()));
-					log.debug("Time since last change:"+ (System.currentTimeMillis() - att.getCreationDate()) + " ms");
-					if (System.currentTimeMillis() - att.getCreationDate() > shutoffDelay) {
-						doorIsActive = false;
-					} else {
-						doorIsActive = true;
+					if(att.getCreationDate()>timestamp){
+						timestamp = att.getCreationDate();
+						
+						if (System.currentTimeMillis() - att.getCreationDate() > shutoffDelay) {
+							doorIsActive = false;
+						} else {
+							doorIsActive = true;
+						}
 					}
 				}
 			}
+			log.debug("Time since last door change:"+ (System.currentTimeMillis() - timestamp) + " ms");
 		} catch (Exception e) {
 			log.error("Exception thrown while getting response: " + e);
 		}
@@ -166,14 +192,14 @@ public class Heater extends TimerTask {
 		if (!doorIsActive && !chairIsActive) {
 			log.debug("Heater status: off");
 			if (heaterIsOn)
-				this.controller.update("winlab.powerswitch.heater", "on",
-						false);
+				if(!this.controller.update("winlab.powerswitch.heater", "on",false))
+					log.error("Error pushing data to world model.");
 			heaterIsOn = false;
 		} else {
 			log.debug("Heater status: on");
 			if (!heaterIsOn)
-				this.controller.update("winlab.powerswitch.heater", "on",
-						true);
+				if(!this.controller.update("winlab.powerswitch.heater", "on",true))
+					log.error("Error pushing data to world model.");
 			heaterIsOn = true;
 		}
 	}
