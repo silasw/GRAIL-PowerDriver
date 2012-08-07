@@ -24,11 +24,14 @@
         </appender>
 
 
-   <logger name="silas.PowerDriver">
+   <logger name="driver.PowerDriver">
           <level value="debug" />
          
         </logger>
-        
+   <logger name="apps.Heater">
+          <level value="debug" />
+         
+        </logger>
   
 
   <root> 
