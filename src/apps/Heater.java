@@ -1,4 +1,4 @@
-package silas;
+package apps;
 import java.util.Collection;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -9,7 +9,6 @@ import org.grailrtls.libworldmodel.solver.SolverWorldConnection;
 import org.grailrtls.libworldmodel.types.BooleanConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import silas.SwitchController;
 
 public class Heater extends TimerTask {
 
