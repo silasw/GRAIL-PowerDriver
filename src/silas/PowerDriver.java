@@ -1,6 +1,10 @@
 package silas;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+
 import org.grailrtls.libworldmodel.client.ClientWorldConnection;
 import org.grailrtls.libworldmodel.client.StepResponse;
 import org.grailrtls.libworldmodel.client.Response;
@@ -64,6 +68,11 @@ public class PowerDriver {
 			printUsageInfo();
 			return;
 		}
+		HashMap<String, Integer> outletmap = new HashMap<String, Integer>();
+		HashMap<String, String> targetmap = new HashMap<String, String>();
+		HashMap<String, String> usernamemap = new HashMap<String, String>();
+		HashMap<String, String> passwordmap = new HashMap<String, String>();
+		
 		// Create a connection to the World Model as a client
 		final ClientWorldConnection wmc = new ClientWorldConnection();
 		log.info("Connecting to {}", wmc);
@@ -127,24 +136,28 @@ public class PowerDriver {
 								outletTS = att.getCreationDate();
 								outlet = IntegerConverter.CONVERTER.decode(att.getData());
 								log.debug("Decoded outlet: {}",outlet);
+								outletmap.put(uri, outlet);
 							}
 						} else if ("target".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > targetTS) {
 								targetTS = att.getCreationDate();
 								target = StringConverter.CONVERTER.decode(att.getData());
 								log.debug("Decoded target: {}",target);
+								targetmap.put(uri,  target);
 							}
 						} else if ("username".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > usernameTS) {
 								usernameTS = att.getCreationDate();
 								username = StringConverter.CONVERTER.decode(att.getData());
 								log.debug("Decoded username: {}",username);
+								usernamemap.put(uri, username);
 							}
 						} else if ("password".equals(att.getAttributeName())) {
 							if (att.getCreationDate() > passwordTS) {
 								passwordTS = att.getCreationDate();
 								password = StringConverter.CONVERTER.decode(att.getData());
 								log.debug("Decoded password: {}",password);
+								passwordmap.put(uri, password);
 							}
 						}
 					} catch (Exception e) {
@@ -153,6 +166,19 @@ public class PowerDriver {
 					}
 				}
 				log.info("{} is {}", uri, newOnStatus ? "on" : "off");
+				if(outlet==-1){
+					outlet = outletmap.get(uri);
+				}
+				if(null==target){
+					target = targetmap.get(uri);
+				}
+				if(null==username){
+					username = usernamemap.get(uri);
+				}
+				if(null==password){
+					password = passwordmap.get(uri);
+				}
+				
 				WebPowerSwitchIII(target, outlet, newOnStatus, username, password);
 			}
 		}
