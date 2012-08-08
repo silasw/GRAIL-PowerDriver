@@ -29,7 +29,16 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.DefaultHttpClient;
-
+/**
+ * PowerDriver.java
+ * 
+ * purpose: Interact with the World Model winlab.powerSwitch objects to match their on status to 
+ *  the real world objects they stand for
+ *  
+ *  @aurthor Silas Waltzer, Sai Kotikalapudi
+ *  @version 1.0 8/8/2012 
+ * 
+ */
 public class PowerDriver {
 	/**
 	 * Logger for this class.
@@ -192,6 +201,11 @@ public class PowerDriver {
 	/** Method that makes an HTTP request to the power switch, logging the
 	 * response.
 	 * 
+	 * @param target URL of the PowerSwitch
+	 * @param outletnum outlet num on the strip, goes from 0 to 7
+	 * @param on Switch status of the object.
+	 * @param username username to connect to url
+	 * @param password password to connect to url
 	 * 
 	*/ 
 	private static void WebPowerSwitchIII(String target, int outletnum,

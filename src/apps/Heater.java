@@ -10,6 +10,15 @@ import org.grailrtls.libworldmodel.solver.SolverWorldConnection;
 import org.grailrtls.libworldmodel.types.BooleanConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+/**
+ * Heater.java
+ * Puropose: Interacts with winlab.powerSwitch.heater, a world model object, depending on
+ * the empty status of a given chair URI and/or on the closed status of a door URI.
+ * 
+ * @author Silas Waltzer , Sai Kotikalapudi
+ * @version:1.0 8/8/2012
+ * 
+ */
 
 public class Heater extends TimerTask {
 
@@ -58,40 +67,55 @@ public class Heater extends TimerTask {
 	static boolean chairIsActive;
 
 	/**
+	 * Holds Connection to the Client World Model
+	 */
+	private final ClientWorldConnection wmc;
+	
+	/**
+	 *  Mantains the Controller Class for global use.
+	 */
+	private final SwitchController controller;
+
+	/**
 	 * Describes the required parameters for this application.
 	 */
 	private static final String USAGE_STRING = "Requires: <WM Host> <WM Solver Port> <WM Client Port> <Chair URI> <Door URI>";
 
 	/**
-	 * Takes arguments: hostname, client port, solver port, chair URI, door URI
+	 * The main method for Heater program.
 	 * 
-	 * @param args
+	 * @param args Takes arguments: hostname, client port, solver port, chair URI, door URI
 	 */
 	public static void main(String[] args) {
-
+		
+		// Checks the size of the args to see if it has minimum required args.
 		if (args.length < 5) {
-			System.err.println(USAGE_STRING);
+			log.error(USAGE_STRING);
 			return;
 		}
 
-		String hostname = args[0];
+		String hostname = args[0]; // Host name of the world model.
 
-		int c_port = Integer.parseInt(args[2]);
-		int s_port = Integer.parseInt(args[1]);
-		chairQuery = args[3];
-		doorQuery = args[4];
+		int c_port = Integer.parseInt(args[2]);// Client port #
+		int s_port = Integer.parseInt(args[1]);// Solver Port #
+		chairQuery = args[3]; // Chair URI
+		doorQuery = args[4];//Door URI
 
-		log.info("Starting heater control. Receiving data from {} and {}.",chairQuery, doorQuery);
-		log.info("Heater shuts off when {} is empty and {} is unchanged for "+ shutoffDelay + "ms.", chairQuery, doorQuery);
+		log.info("Starting heater control. Receiving data from {} and {}.",chairQuery, doorQuery);// Prints the given Chair and Door URI's
+		log.info("Heater shuts off when {} is empty and {} is unchanged for "+ shutoffDelay + "ms.", chairQuery, doorQuery); // Gives 
+		
 		// Create a connection to the World Model as a client
-		ClientWorldConnection wmc = new ClientWorldConnection();
-		wmc.setHost(hostname);
-		wmc.setPort(c_port);
+		ClientWorldConnection wmc = new ClientWorldConnection(); // initialize Client World connection.
+		wmc.setHost(hostname); // Give hostname to Connection
+		wmc.setPort(c_port);//  Give Client prot to connection 
+		
 		if (!wmc.connect()) {
 			log.error("Unable to connect to world model as a client!");
 			return;
 		}
-		SolverWorldConnection wms = new SolverWorldConnection();
+		
+		//Create a Connection to World Model as a Solver
+		SolverWorldConnection wms = new SolverWorldConnection();// initilize Solver World Connection
 		wms.setHost(hostname);
 		wms.setPort(s_port);
 		wms.setOriginString("HeaterSolver");
@@ -99,6 +123,8 @@ public class Heater extends TimerTask {
 			log.error("Unable to connect to world model as a solver!");
 			return;
 		}
+		
+		
 		//Check current heater status
 		try {
 			WorldState heaterstate = wmc.getSnapshot("winlab.powerswitch.heater", 0, 0, "on").get();
@@ -117,26 +143,38 @@ public class Heater extends TimerTask {
 			log.error("Exception thrown while getting initial heater response: " + e);
 		}
 		log.info("Detected that the heater object's On status was set to "+heaterIsOn);
+		
+		
 		//Initialize switch controller class
 		SwitchController switchcontrol = new SwitchController(wms);
+		
 		//Set up timer task
 		Timer mintimer = new Timer();
 		TimerTask checker = new Heater(wmc, switchcontrol);
+		
 		//Chair and door are initialized active
 		doorIsActive = true;
 		chairIsActive = true;
+		
 		//Schedule task
 		mintimer.scheduleAtFixedRate(checker, initialTaskDelay, checkInterval);
 	}
 
-	private final ClientWorldConnection wmc;
-	private final SwitchController controller;
-	
+	/**
+	 * Constructor for Heater class
+	 * 
+	 * @param wmc ClientWorldConnection passed to maintain connection.
+	 * @param controller Switch Controller passes to use the same controller.
+	 */
 	public Heater(ClientWorldConnection wmc, final SwitchController controller) {
-		this.wmc = wmc;
-		this.controller = controller;
+		this.wmc = wmc; // set to global variable
+		this.controller = controller; // set to global variable
 	}
-
+	/**
+	 *  function that contains that interacts with the chair empty status and the door closed status to manipulate
+	 *  winlab.powerSwitch.heater
+	 */
+	
 	@Override
 	public void run() {
 		try {
@@ -148,6 +186,7 @@ public class Heater extends TimerTask {
 			Collection<String> dooruris = doorstate.getURIs();
 			long timestamp = 0;
 			boolean empty = false;
+			// Gets the value of empty which has the greatest timestamp.
 			for (String uri : chairuris) {
 				log.info("Chair URI: " + uri);
 				Collection<Attribute> attribs = chairstate.getState(uri);
@@ -167,6 +206,8 @@ public class Heater extends TimerTask {
 			log.debug("\tEmpty: " + empty);
 			log.debug("Time since last chair change:"+ (System.currentTimeMillis() - timestamp) + " ms");
 			timestamp = 0;
+			
+			// Gets the value of closed for the greates timestamp 
 			for (String uri : dooruris) {
 				log.info("Door URI: " + uri);
 				Collection<Attribute> attribs = doorstate.getState(uri);	
